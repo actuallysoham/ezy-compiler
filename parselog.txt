@@ -1,0 +1,114 @@
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [50] and goto state 15
+INFO:root:Result : <int @ 0x956460> (50)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['a','=',50] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [40] and goto state 15
+INFO:root:Result : <int @ 0x956320> (40)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['b','=',40] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['a'] and goto state 15
+INFO:root:Result : <int @ 0x956460> (50)
+INFO:root:Action : Reduce rule [expression -> NAME] with ['b'] and goto state 16
+INFO:root:Result : <int @ 0x956320> (40)
+INFO:root:Action : Reduce rule [expression -> expression + expression] with [50,'+',40] and goto state 15
+INFO:root:Result : <int @ 0x956960> (90)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['c','=',90] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['c'] and goto state 15
+INFO:root:Result : <int @ 0x956960> (90)
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [10] and goto state 16
+INFO:root:Result : <int @ 0x955f60> (10)
+INFO:root:Action : Reduce rule [expression -> expression + expression] with [90,'+',10] and goto state 15
+INFO:root:Result : <int @ 0x956aa0> (100)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['d','=',100] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['f'] and goto state 15
+INFO:root:Result : <int @ 0x955e20> (0)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['e','=',0] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['c'] and goto state 3
+INFO:root:Result : <int @ 0x956960> (90)
+INFO:root:Action : Reduce rule [statement -> expression] with [90] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [50] and goto state 15
+INFO:root:Result : <int @ 0x956460> (50)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['a','=',50] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['b'] and goto state 15
+INFO:root:Result : <int @ 0x955e20> (0)
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [30] and goto state 16
+INFO:root:Result : <int @ 0x9561e0> (30)
+INFO:root:Action : Reduce rule [expression -> expression + expression] with [0,'+',30] and goto state 15
+INFO:root:Result : <int @ 0x9561e0> (30)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['a','=',30] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [20] and goto state 15
+INFO:root:Result : <int @ 0x9560a0> (20)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['b','=',20] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['a'] and goto state 15
+INFO:root:Result : <int @ 0x9561e0> (30)
+INFO:root:Action : Reduce rule [expression -> NAME] with ['b'] and goto state 16
+INFO:root:Result : <int @ 0x9560a0> (20)
+INFO:root:Action : Reduce rule [expression -> expression + expression] with [30,'+',20] and goto state 15
+INFO:root:Result : <int @ 0x956460> (50)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['c','=',50] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [50] and goto state 15
+INFO:root:Result : <int @ 0x956460> (50)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['a','=',50] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NUMBER] with [20] and goto state 15
+INFO:root:Result : <int @ 0x9560a0> (20)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['b','=',20] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['b'] and goto state 15
+INFO:root:Result : <int @ 0x9560a0> (20)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['c','=',20] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END
+INFO:root:PLY: PARSE DEBUG START
+INFO:root:Action : Reduce rule [expression -> NAME] with ['c'] and goto state 15
+INFO:root:Result : <int @ 0x9560a0> (20)
+INFO:root:Action : Reduce rule [statement -> NAME = expression] with ['d','=',20] and goto state 1
+INFO:root:Result : <NoneType @ 0x90ba10> (None)
+INFO:root:Done   : Returning <NoneType @ 0x90ba10> (None)
+INFO:root:PLY: PARSE DEBUG END

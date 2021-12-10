@@ -1,0 +1,26 @@
+var a,b;
+var c;
+% following procedure ensures that x&lt;= y on return
+proc order(inout x, inout y)
+var t;
+if x < y goto done;
+y = t+0;
+t= x+0;
+x = y+0;
+done:
+return;
+begin
+print "enter two numbers ";
+println;
+read a ;
+read b ;
+call order(a,b);
+%now a &lt;= b
+c=b/a ;
+c = c*a ;
+c = b - c ;
+print "absolute mod is " ;
+print c;
+println ;
+exit ;
+end
