@@ -41,10 +41,6 @@ tokens = [
     'MINUS',
     'TIMES',
     'FW_SLASH',
-    # 'QUOTE',
-    # 'UNDERSCORE',
-    # 'NEWLINE',
-    # 'LABEL',
  ] + list(reserved.values())
 
 t_LPAR = r'\('
@@ -62,9 +58,7 @@ t_GTR = r'>'
 t_LEQ = r'<='
 t_GEQ = r'>='
 t_NEQ = r'<>'
-# t_QUOTE = r'"'
-# t_UNDERSCORE = r'_'
-# t_ignore_COMMENT = r'%[^\n]*'
+
 
 def t_COMMENT(t):
     r'%[^\n]*'
@@ -75,11 +69,7 @@ def t_ID(t):
     t.type = reserved.get(t.value,'ID')
     t.value = t.value
     return t
-  
-# def t_LABEL(t):
-#     r'[a-zA-Z_0-9]+'
-#     t.type = 'LABEL'
-#     return t
+
 
 def t_NUM(t):
     r'\d+'
@@ -100,6 +90,98 @@ t_ignore = ' \t'
 
 lexer = lex.lex(debug=True)
 
+
+class Node:
+    def __init__(self, type, children=None, leaf=None, line_number=None):
+        self.type = type
+        self.children = children
+        self.leaf = leaf
+        self.line_number = line_number
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
+
+class Variable(Node):
+    def __init__(self, type, children=None, leaf=None, value=None, line_number=None):
+        super().__init__(type, children, leaf)
+        self.value = value
+        self.line_number = line_number
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, {self.value}, Line={self.line_number})'
+
+class Procedure(Node):
+    def __init__(self, type, children=None, leaf=None, params=None, vardecls=None, pstmtlist=None, line_number=None):
+        super().__init__(type, children, leaf, line_number=line_number)
+        self.params = params
+        self.vardecls = vardecls
+        self.pstmtlist = pstmtlist
+        self.line_number = line_number
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, {self.params}, {self.vardecls}, {self.pstmtlist}, Line={self.line_number})'
+
+class Parameter(Variable):
+    def __init__(self, type, children=None, leaf=None, value=None, mode=None):
+        super().__init__(type, children, leaf, value)
+        self.mode = mode
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, {self.mode}, {self.value})'
+
+class Statement(Node):
+    def __init__(self, type, children=None, leaf=None, line_number=None):
+        super().__init__(type, children, leaf, line_number=line_number)
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
+
+class Label(Statement):
+    def __init__(self, type, children=None, leaf=None, line_number=None):
+        super().__init__(type, children, leaf, line_number=line_number+1)
+
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
+
+class Assign(Statement):
+    def __init__(self, type, children=None, leaf=None, line_number=None, expression=None):
+        super().__init__(type, children, leaf, line_number=line_number)
+        self.children = children
+        self.leaf = leaf
+        self.line_number = line_number
+        self.expression = expression
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
+
+class ConditionalJump(Statement):
+    def __init__(self, type, children=None, leaf=None, line_number=None, comparison=None, destination=None):
+        super().__init__(type, children, leaf, line_number=line_number)
+        self.comparison = comparison
+        self.destination = destination
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number}, {self.comparison}, {self.destination})'
+    
+class Jump(Statement):
+    def __init__(self, type, children=None, leaf=None, line_number=None, destination_label=None):
+        super().__init__(type, children, leaf, line_number=line_number)
+        self.destination_label = destination_label
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number}, {self.destination_label})'
+
+class Read(Statement):
+    def __init__(self, type, children=None, leaf=None, line_number=None):
+        super().__init__(type, children, leaf, line_number=line_number)
+    
+    def __repr__(self):
+        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
+
+class Print(Statement):
+    def __init__(self, type, children=None, leaf=None, line_number=None):
+        super().__init__(type, children, leaf, line_number=line_number)
+
 variable_list = {}
 procedure_list = {}
 label_list = {}
@@ -107,18 +189,21 @@ label_list = {}
 def p_prog(p):
     'prog : vardecls procdecls BEGIN_KW stmtlist END_KW'
     print("Program Initialized")
+    p[0] = Node('program', children=[p[1], p[2], p[4]])
 
 def p_vardecls(p): # vardecls vardecl changed to vardecl vardecls to fix ambiguity? 
     """vardecls : vardecl vardecls
                 | empty"""
     print("Variable Declarations")
     p[0] = p[1]
+    print(p[0])
 
     # pprint.pprint(variable_list)
 
 def p_vardecl(p):
     'vardecl : VAR_KW varlist SEMICOL'
     variable_list = p[2]
+    p[0] = p[2]
     print("Variable Declaration")
 
 #TODO: handle duplicate variable declarations
@@ -128,7 +213,7 @@ def p_varlist(p):
                | ID"""
     print("New Variable")
     p[0] = list()
-    p[0].append(p[1])
+    p[0].append(Variable('var', leaf=p[1]))
     if len(p) == 4:
         p[0].extend(p[3])
     variable_list[p[1]] = {'status': 'initialized', 'value': None}
@@ -142,6 +227,7 @@ def p_procdecls(p):
 def p_procdecl(p):
     'procdecl : PROC_KW ID LPAR paramlist RPAR vardecls pstmtlist'
     print("New Procedure")
+    p[0] = Procedure('proc', leaf=p[2], params=p[4], vardecls=p[6], pstmtlist=p[7])
     procedure_list[p[2]] = {'params': p[4], 'vardecls': p[6], 'pstmtlist': p[7]}
 
 def p_paramlist(p):
@@ -161,7 +247,8 @@ def p_tparamlist(p):
 def p_param(p):
     """param : mode ID"""
     print("New Parameter")
-    p[0] = {'mode': p[1], 'name': p[2]}
+    p[0] = Parameter('param', leaf=p[2], mode=p[1])
+    # p[0] = {'mode': p[1], 'name': p[2]}
 
 def p_mode(p):
     """mode : IN_KW
