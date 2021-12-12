@@ -102,12 +102,14 @@ class Node(JSONEncoder):
         self.data = data
     
     def __repr__(self):
-        if self.type != 'proc':
+        if self.type != 'proc' and self.type != 'call':
             return f'{str(self.type).title()}@{self.line_number}({self.children}, {self.leaf}, {json.dumps(self.data)})'
-        else:
+        elif self.type == 'proc':
             tempData = {'params': len(self.data['params']), 'vardecls': len(self.data['vardecls']), 'pstmtlist': len(self.data['pstmtlist'])}
-            print('hi', self.data['params'])
+            print(self.data['params'])
             return f'{str(self.type).title()}@{self.line_number}({self.children}, {self.leaf}, {json.dumps(tempData)})'
+        elif self.type == 'call':
+            return f'{str(self.type).title()}@{self.line_number}({self.children}, {self.leaf})'
     
     def value(self):
         if self.type == 'var':
@@ -392,17 +394,18 @@ def p_callstmt(p):
     print("Call Statement")
     if p[2] in procedure_list:
         if len(p[4]) == len(procedure_list[p[2]].data['params']):
-            paramsList = {}
+            paramsList = list()
+            modeCount = {'in': 0, 'out': 0, 'inout': 0}
             for i in range(len(procedure_list[p[2]].data['params'])):
-                if procedure_list[p[2]].data['params'][i].data['mode'] == 'inout':
-                    print("handle inout")
-                elif procedure_list[p[2]].data['params'][i].data['mode'] == 'in':
-                    print("handle in")
+                paramsList.append({'mode': procedure_list[p[2]].data['params'][i].data['mode'], 'callee': procedure_list[p[2]].data['params'][i], 'caller': p[4][i]})
+                if procedure_list[p[2]].data['params'][i].data['mode'] == 'in':
+                    modeCount['in'] += 1
                 elif procedure_list[p[2]].data['params'][i].data['mode'] == 'out':
-                    print("handle out")
-                else:
-                    print("handle default")
-            # p[0] = Node('call', line_number=p.lineno(1), leaf=p[1], children=[procedure_list[p[2]]], data={"args": p[4]})
+                    modeCount['out'] += 1
+                elif procedure_list[p[2]].data['params'][i].data['mode'] == 'inout':
+                    modeCount['inout'] += 1
+
+            p[0] = Node('call', line_number=p.lineno(1), leaf=p[1], children=[procedure_list[p[2]]], data={'params': paramsList, 'modeCount': modeCount})
         else:
             print("Invalid number of arguments")
     else:
@@ -479,7 +482,21 @@ def translateFunctions(Node):
     if Node.type == 'read':
         print(f"GET {Node.children[0].data['location']}")
     if Node.type == 'call':
-        print("CALL")
+        numPush = 1 + Node.data['modeCount']['in'] + Node.data['modeCount']['out'] + 2*Node.data['modeCount']['inout']
+        print("MOV A,I")
+        print("ADI", numPush)
+        print("PUSH A")
+        for param in Node.data['params']:
+            if param['mode'] == 'in' or param['mode'] == 'inout':
+                print(f"PUSH {param['caller'].data['location']}")
+        print(f"CALL _{Node.children[0].leaf}")
+        outCount = 2
+        for param in Node.data['params']:
+            if param['mode'] == 'out' or param['mode'] == 'inout':
+                print(f"MOV {param['caller'].data['location']},%{outCount}")
+                outCount += 1
+    # if Node.type == 'assign':
+    #     if Node.children[]
     
 
-translateFunctions(global_program.children[2][0])
+translateFunctions(global_program.children[2][4])
