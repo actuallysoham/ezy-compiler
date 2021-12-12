@@ -2,6 +2,7 @@ from ply import lex
 from ply import yacc
 import sys
 import pprint
+import json
 
 reserved = {
     'begin' : 'BEGIN_KW',
@@ -92,95 +93,49 @@ lexer = lex.lex(debug=True)
 
 
 class Node:
-    def __init__(self, type, children=None, leaf=None, line_number=None):
+    def __init__(self, type, line_number=None, children=None, leaf=None, data=None):
         self.type = type
+        self.line_number = line_number
         self.children = children
         self.leaf = leaf
-        self.line_number = line_number
+        self.data = data
     
     def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
-
-class Variable(Node):
-    def __init__(self, type, children=None, leaf=None, value=None, line_number=None):
-        super().__init__(type, children, leaf)
-        self.value = value
-        self.line_number = line_number
+        return f'{str(self.type).title()}@{self.line_number}({self.children}, {self.leaf}, {json.dumps(self.data)})'
     
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, {self.value}, Line={self.line_number})'
+    def value(self):
+        if self.type == 'var':
+            return self.data['value']
+        elif self.type == 'const':
+            return self.leaf
 
-class Procedure(Node):
-    def __init__(self, type, children=None, leaf=None, params=None, vardecls=None, pstmtlist=None, line_number=None):
-        super().__init__(type, children, leaf, line_number=line_number)
-        self.params = params
-        self.vardecls = vardecls
-        self.pstmtlist = pstmtlist
-        self.line_number = line_number
-    
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, {self.params}, {self.vardecls}, {self.pstmtlist}, Line={self.line_number})'
+    def calculate(self):
+        try:
+            if self.type == 'arithexpr':
+                if self.leaf == '+':
+                    return self.children[0].value() + self.children[1].value()
+                elif self.leaf == '-':
+                    return self.children[0].value() - self.children[1].value()
+                elif self.leaf == '*':
+                    return self.children[0].value() * self.children[1].value()
+                elif self.leaf == '/':
+                    return self.children[0].value() / self.children[1].value()
+            elif self.type == 'boolexpr':
+                if self.leaf == '=':
+                    return self.children[0].value() == self.children[1].value()
+                elif self.leaf == '<':
+                    return self.children[0].value() < self.children[1].value()
+                elif self.leaf == '>':
+                    return self.children[0].value() > self.children[1].value()
+                elif self.leaf == '<=':
+                    return self.children[0].value() <= self.children[1].value()
+                elif self.leaf == '>=':
+                    return self.children[0].value() >= self.children[1].value()
+                elif self.leaf == '<>':
+                    return self.children[0].value() != self.children[1].value()
+        except TypeError: 
+            return None
 
-class Parameter(Variable):
-    def __init__(self, type, children=None, leaf=None, value=None, mode=None):
-        super().__init__(type, children, leaf, value)
-        self.mode = mode
-    
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, {self.mode}, {self.value})'
-
-class Statement(Node):
-    def __init__(self, type, children=None, leaf=None, line_number=None):
-        super().__init__(type, children, leaf, line_number=line_number)
-    
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
-
-class Label(Statement):
-    def __init__(self, type, children=None, leaf=None, line_number=None):
-        super().__init__(type, children, leaf, line_number=line_number+1)
-
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
-
-class Assign(Statement):
-    def __init__(self, type, children=None, leaf=None, line_number=None, expression=None):
-        super().__init__(type, children, leaf, line_number=line_number)
-        self.children = children
-        self.leaf = leaf
-        self.line_number = line_number
-        self.expression = expression
-    
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
-
-class ConditionalJump(Statement):
-    def __init__(self, type, children=None, leaf=None, line_number=None, comparison=None, destination=None):
-        super().__init__(type, children, leaf, line_number=line_number)
-        self.comparison = comparison
-        self.destination = destination
-    
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number}, {self.comparison}, {self.destination})'
-    
-class Jump(Statement):
-    def __init__(self, type, children=None, leaf=None, line_number=None, destination_label=None):
-        super().__init__(type, children, leaf, line_number=line_number)
-        self.destination_label = destination_label
-    
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number}, {self.destination_label})'
-
-class Read(Statement):
-    def __init__(self, type, children=None, leaf=None, line_number=None):
-        super().__init__(type, children, leaf, line_number=line_number)
-    
-    def __repr__(self):
-        return f'{str(self.type).title()}({self.children}, {self.leaf}, Line={self.line_number})'
-
-class Print(Statement):
-    def __init__(self, type, children=None, leaf=None, line_number=None):
-        super().__init__(type, children, leaf, line_number=line_number)
 
 variable_list = {}
 procedure_list = {}
@@ -189,7 +144,7 @@ label_list = {}
 def p_prog(p):
     'prog : vardecls procdecls BEGIN_KW stmtlist END_KW'
     print("Program Initialized")
-    p[0] = Node('program', children=[p[1], p[2], p[4]])
+    p[0] = Node(type='program', line_number=p.lineno(0) , children=[p[1], p[2], p[4]])
 
 def p_vardecls(p): # vardecls vardecl changed to vardecl vardecls to fix ambiguity? 
     """vardecls : vardecl vardecls
@@ -212,11 +167,12 @@ def p_varlist(p):
     """varlist : ID COMMA varlist
                | ID"""
     print("New Variable")
+    variable_list[p[1]] = Node('var', line_number=p.lineno(1), leaf=p[1], data={'status': 'initialized', 'value': None, 'location': None}) 
     p[0] = list()
-    p[0].append(Variable('var', leaf=p[1]))
+    p[0].append(variable_list[p[1]])
     if len(p) == 4:
         p[0].extend(p[3])
-    variable_list[p[1]] = {'status': 'initialized', 'value': None}
+    
 
 def p_procdecls(p):
     """procdecls : procdecl procdecls 
@@ -227,8 +183,9 @@ def p_procdecls(p):
 def p_procdecl(p):
     'procdecl : PROC_KW ID LPAR paramlist RPAR vardecls pstmtlist'
     print("New Procedure")
-    p[0] = Procedure('proc', leaf=p[2], params=p[4], vardecls=p[6], pstmtlist=p[7])
-    procedure_list[p[2]] = {'params': p[4], 'vardecls': p[6], 'pstmtlist': p[7]}
+    procedure_list[p[2]] = Node('proc', line_number=p.lineno(2), leaf=p[2], data={'params': p[4], 'vardecls': p[6], 'pstmtlist': p[7]})
+    p[0] = procedure_list[p[2]]
+    
 
 def p_paramlist(p):
     """paramlist : tparamlist
@@ -247,7 +204,7 @@ def p_tparamlist(p):
 def p_param(p):
     """param : mode ID"""
     print("New Parameter")
-    p[0] = Parameter('param', leaf=p[2], mode=p[1])
+    p[0] = Node('param', line_number=p.lineno(2), leaf=p[2], data={'mode': p[1]})
     # p[0] = {'mode': p[1], 'name': p[2]}
 
 def p_mode(p):
@@ -286,7 +243,12 @@ def p_mstmt(p):
 def p_dlabel(p):
     'dlabel : ID COLON'
     print("New Label")
-    label_list[p[1]] = {'status': 'initialized', 'value': p.lineno(1)+1}
+    if p[1] in label_list:
+        label_list[p[1]].line_number = p.lineno(1)
+        label_list[p[1]].data['status'] = 'initialized'
+    else:
+        label_list[p[1]] = Node('label', line_number=p.lineno(1), leaf=p[1], data={'status': 'initialized', 'location': None, 'called_from': list()})
+    p[0] = label_list[p[1]]
 
 def p_stmt(p):
     """stmt : assign
@@ -300,76 +262,61 @@ def p_stmt(p):
     p[0] = p[1]
 
 def p_assign(p):
-    """assign : ID EQUALS opd arithop opd"""
+    """assign : ID EQUALS arithexpr"""
     print("Assignment")
     if p[1] in variable_list:
-        if p[4] == '+':
-            variable_list[p[1]]['value'] = p[3] + p[5]
-        elif p[4] == '-':
-            variable_list[p[1]]['value'] = p[3] - p[5]
-        elif p[4] == '*':
-            variable_list[p[1]]['value'] = p[3] * p[5]
-        elif p[4] == '/':
-            variable_list[p[1]]['value'] = p[3] / p[5]
-        else:
-            print("Invalid Operator")
+        variable_list[p[1]].data['value'] = p[3].calculate()
+        variable_list[p[1]].data['status'] = p.lineno(1)  
     else:
         print("assign", f"Variable {p[1]} not declared")
+    p[0] = Node(type='assign', line_number=p.lineno(1), leaf=p[2], children=[p[1], p[3]])
+
+def p_arithexpr(p):
+    """arithexpr : opd arithop opd"""
+    print("Arithmetic Expression")
+    p[0] = Node('arithexpr', line_number=p.lineno(0), children=[p[1], p[3]], leaf=p[2])
 
 def p_opd(p):
     """opd : ID"""
     print("Operand (ID)")
     if p[1] in variable_list:
-        p[0] = variable_list[p[1]]['value']
+        p[0] = variable_list[p[1]]
     else:
         print("opd", f"Variable {p[1]} not declared")
-        p[0] = -1
 
 def p_opd_2(p):
     """opd : NUM"""
     print("Operand (NUM)")
-    p[0] = p[1]
+    p[0] = Node('const', line_number=p.lineno(1), leaf=p[1])
 
 # TODO: replace all lineno modifications with AST syntax
 def p_condjump(p):
-    """condjump : IF_KW ID cmpop ID jump"""
+    """condjump : IF_KW cmpexpr jump"""
     print("Conditional Jump")
-    if p[2] in variable_list:
-        if p[4] == '=':
-            if variable_list[p[2]]['value'] == variable_list[p[5]]['value']:
-                print("Jumping to label")
-        elif p[4] == '<':
-            if variable_list[p[2]]['value'] < variable_list[p[5]]['value']:
-                print("Jumping to label")
-        elif p[4] == '>':
-            if variable_list[p[2]]['value'] > variable_list[p[5]]['value']:
-                print("Jumping to label")
-        elif p[4] == '<=':
-            if variable_list[p[2]]['value'] <= variable_list[p[5]]['value']:
-                print("Jumping to label")
-        elif p[4] == '>=':
-            if variable_list[p[2]]['value'] >= variable_list[p[5]]['value']:
-                print("Jumping to label")
-        elif p[4] == '<>':
-            if variable_list[p[2]]['value'] != variable_list[p[5]]['value']:
-                print("Jumping to label")
-        else:
-            print("Invalid Operator")
-    else:
-        print("condjump", "Variable not declared")
+    
+    p[0] = Node('condjump', line_number=p.lineno(1), children=[p[2], p[3]], leaf=p[1], data={"value": None, True: p[3], False: p.lineno(3)+1})
 
+    
+
+def p_cmpexpr(p):
+    """cmpexpr : opd cmpop opd"""
+    p[0] = Node('cmpexpr', line_number=p.lineno(0), children=[p[1], p[3]], leaf=p[2])
 
 
 def p_jump(p):
     """jump : GOTO_KW ID"""
     print("Jump")
+    if p[2] not in label_list:
+        label_list[p[2]] = Node('label', line_number=None, leaf=p[2], data={'status': 'uninitialized', 'location': None, 'called_from': [p.lineno(1)]})
+    p[0] = Node('jump', line_number=p.lineno(1), leaf=p[1], children=[label_list[p[2]]])
     # p.lexer.lineno = label_list[p[2]]['value'] - 1
-    p[0] = {'type': 'jump', 'label': p[2]}
-    print(p[0])
+    # p[0] = {'type': 'jump', 'label': p[2]}
+    # print(p[0])
 
 def p_readstmt(p):
     """readstmt : READ_KW ID"""
     print("Read Statement")
+    p[0] = Node('read', line_number=p.lineno(1), leaf=p[1], children=[p[2]])
     if p[2] in variable_list:
         variable_list[p[2]]['value'] = int(input())
     else:
