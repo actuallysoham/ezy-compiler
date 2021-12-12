@@ -314,7 +314,7 @@ def p_assign(p):
         variable_list[SCOPE][p[1]].data['status'] = p.lineno(1)  
     else:
         print("assign", f"Variable {p[1]} not declared")
-    p[0] = Node(type='assign', line_number=p.lineno(1), leaf=p[2], children=[p[1], p[3]])
+    p[0] = Node(type='assign', line_number=p.lineno(1), leaf=p[2], children=[variable_list[SCOPE][p[1]], p[3]])
 
 def p_arithexpr(p):
     """arithexpr : opd arithop opd"""
@@ -471,32 +471,49 @@ pprint.pprint(label_list)
 
 pprint.pprint(global_program.children[2])
 
-def translateFunctions(Node):
-    if Node.type == 'print':
-        if isinstance(Node.children[0], str):
-            print(f"SPUT {Node.children[0]}")
-        else:
-            print(f"PUT {Node.children[0].data['location']}")
-    if Node.type == 'println':
-        print("LPUT")
-    if Node.type == 'read':
-        print(f"GET {Node.children[0].data['location']}")
-    if Node.type == 'call':
-        numPush = 1 + Node.data['modeCount']['in'] + Node.data['modeCount']['out'] + 2*Node.data['modeCount']['inout']
-        print("MOV A,I")
-        print("ADI", numPush)
-        print("PUSH A")
-        for param in Node.data['params']:
-            if param['mode'] == 'in' or param['mode'] == 'inout':
-                print(f"PUSH {param['caller'].data['location']}")
-        print(f"CALL _{Node.children[0].leaf}")
-        outCount = 2
-        for param in Node.data['params']:
-            if param['mode'] == 'out' or param['mode'] == 'inout':
-                print(f"MOV {param['caller'].data['location']},%{outCount}")
-                outCount += 1
-    # if Node.type == 'assign':
-    #     if Node.children[]
-    
+def translateFunctions(Stmt):
+    if isinstance(Stmt, Node):
+        if Stmt.type == 'print':
+            if isinstance(Stmt.children[0], str):
+                print(f"SPUT {Stmt.children[0]}")
+            else:
+                print(f"PUT {Stmt.children[0].data['location']}")
+        if Stmt.type == 'println':
+            print("LPUT")
+        if Stmt.type == 'read':
+            print(f"GET {Stmt.children[0].data['location']}")
+        if Stmt.type == 'call':
+            numPush = 1 + Stmt.data['modeCount']['in'] + Stmt.data['modeCount']['out'] + 2*Stmt.data['modeCount']['inout']
+            print("MOV A,I")
+            print("ADI", numPush)
+            print("PUSH A")
+            for param in Stmt.data['params']:
+                if param['mode'] == 'in' or param['mode'] == 'inout':
+                    print(f"PUSH {param['caller'].data['location']}")
+            print(f"CALL _{Stmt.children[0].leaf}")
+            outCount = 2
+            for param in Stmt.data['params']:
+                if param['mode'] == 'out' or param['mode'] == 'inout':
+                    print(f"MOV {param['caller'].data['location']},%{outCount}")
+                    outCount += 1
+        if Stmt.type == 'assign':
+            if Stmt.children[1].leaf == '+':
+                print(f"ADD {Stmt.children[1].children[0].data['location']},{Stmt.children[1].children[1].data['location']}")
+            elif Stmt.children[1].leaf == '-':
+                print(f"SUB {Stmt.children[1].children[0].data['location']},{Stmt.children[1].children[1].data['location']}")
+            elif Stmt.children[1].leaf == '*':
+                print(f"MUL {Stmt.children[1].children[0].data['location']},{Stmt.children[1].children[1].data['location']}")
+            elif Stmt.children[1].leaf == '/':
+                print(f"DIV {Stmt.children[1].children[0].data['location']},{Stmt.children[1].children[1].data['location']}")
+            print(f"MOV {Stmt.children[0].data['location']},A")
+    else:
+        if Stmt == 'exit':
+            print("STOP")    
 
-translateFunctions(global_program.children[2][4])
+
+print(".....................\n\n")
+
+for Stmt in global_program.children[2]:
+    translateFunctions(Stmt)
+
+# translateFunctions(global_program.children[2][11])
