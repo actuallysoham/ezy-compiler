@@ -1,3 +1,4 @@
+from json.encoder import JSONEncoder
 from ply import lex
 from ply import yacc
 import sys
@@ -92,7 +93,7 @@ t_ignore = ' \t'
 lexer = lex.lex(debug=True)
 
 
-class Node:
+class Node(JSONEncoder):
     def __init__(self, type, line_number=None, children=None, leaf=None, data=None):
         self.type = type
         self.line_number = line_number
@@ -101,7 +102,12 @@ class Node:
         self.data = data
     
     def __repr__(self):
-        return f'{str(self.type).title()}@{self.line_number}({self.children}, {self.leaf}, {json.dumps(self.data)})'
+        if self.type != 'proc':
+            return f'{str(self.type).title()}@{self.line_number}({self.children}, {self.leaf}, {json.dumps(self.data)})'
+        else:
+            tempData = {'params': len(self.data['params']), 'vardecls': len(self.data['vardecls']), 'pstmtlist': len(self.data['pstmtlist'])}
+            print('hi', self.data['params'])
+            return f'{str(self.type).title()}@{self.line_number}({self.children}, {self.leaf}, {json.dumps(tempData)})'
     
     def value(self):
         if self.type == 'var':
@@ -137,28 +143,52 @@ class Node:
             return None
 
 
-variable_list = {}
+
+SCOPE = 'global'
+
+variable_list = {
+    "global": {}
+}
+
 procedure_list = {}
-label_list = {}
+label_list = {
+    'global': {}
+}
+
+global_program = None
+
+def sortDeclOrder(listOfNodes):
+    addressList = [ listOfNodes[i].data['location'] for i in range(len(listOfNodes)) ][::-1]
+    for i, node in enumerate(listOfNodes):
+        node.data['location'] = addressList[i]
 
 def p_prog(p):
-    'prog : vardecls procdecls BEGIN_KW stmtlist END_KW'
+    'prog : vardecls procdecls BEGIN_KW transfrctrl stmtlist END_KW'
     print("Program Initialized")
-    p[0] = Node(type='program', line_number=p.lineno(0) , children=[p[1], p[2], p[4]])
+    global global_program
+    p[0] = Node(type='program', line_number=p.lineno(0) , children=[p[1], p[2], p[5]])
+    global_program = p[0]
+
+def p_transfrctrl(p):
+    """transfrctrl :"""
+    global SCOPE
+    SCOPE = 'global'
 
 def p_vardecls(p): # vardecls vardecl changed to vardecl vardecls to fix ambiguity? 
     """vardecls : vardecl vardecls
                 | empty"""
     print("Variable Declarations")
     p[0] = p[1]
-    print(p[0])
+    print("vardeclsxx", p[0])
+    print("vardeclsxx", variable_list)
 
     # pprint.pprint(variable_list)
 
 def p_vardecl(p):
     'vardecl : VAR_KW varlist SEMICOL'
-    variable_list = p[2]
+    # variable_list[SCOPE] = p[2]
     p[0] = p[2]
+    sortDeclOrder(p[0])
     print("Variable Declaration")
 
 #TODO: handle duplicate variable declarations
@@ -167,9 +197,13 @@ def p_varlist(p):
     """varlist : ID COMMA varlist
                | ID"""
     print("New Variable")
-    variable_list[p[1]] = Node('var', line_number=p.lineno(1), leaf=p[1], data={'status': 'initialized', 'value': None, 'location': None}) 
+    if SCOPE == 'global':
+        loc = f"${len(variable_list['global'])}" 
+    else:
+        loc = SCOPE
+    variable_list[SCOPE][p[1]] = Node('var', line_number=p.lineno(1), leaf=p[1], data={'status': 'initialized', 'value': None, 'location': loc}) 
     p[0] = list()
-    p[0].append(variable_list[p[1]])
+    p[0].append(variable_list[SCOPE][p[1]])
     if len(p) == 4:
         p[0].extend(p[3])
     
@@ -181,11 +215,19 @@ def p_procdecls(p):
     p[0] = p[1]
 
 def p_procdecl(p):
-    'procdecl : PROC_KW ID LPAR paramlist RPAR vardecls pstmtlist'
+    'procdecl : PROC_KW ID procctrl LPAR paramlist RPAR  vardecls pstmtlist'
     print("New Procedure")
-    procedure_list[p[2]] = Node('proc', line_number=p.lineno(2), leaf=p[2], data={'params': p[4], 'vardecls': p[6], 'pstmtlist': p[7]})
+    procedure_list[p[2]] = Node('proc', line_number=p.lineno(2), leaf=p[2], data={'params': p[5], 'vardecls': p[7], 'pstmtlist': p[8]})
     p[0] = procedure_list[p[2]]
-    
+    print(procedure_list[p[2]])
+
+def p_procctrl(p):
+    """procctrl :"""
+    global SCOPE
+    print(f"SWITCHING CONTROL TO {p[-1]}")
+    SCOPE = p[-1]
+    if SCOPE not in variable_list:
+        variable_list[SCOPE] = {}
 
 def p_paramlist(p):
     """paramlist : tparamlist
@@ -204,7 +246,8 @@ def p_tparamlist(p):
 def p_param(p):
     """param : mode ID"""
     print("New Parameter")
-    p[0] = Node('param', line_number=p.lineno(2), leaf=p[2], data={'mode': p[1]})
+    variable_list[SCOPE][p[2]] = Node('param', line_number=p.lineno(2), leaf=p[2], data={'mode': p[1]})
+    p[0] = variable_list[SCOPE][p[2]]
     # p[0] = {'mode': p[1], 'name': p[2]}
 
 def p_mode(p):
@@ -264,9 +307,9 @@ def p_stmt(p):
 def p_assign(p):
     """assign : ID EQUALS arithexpr"""
     print("Assignment")
-    if p[1] in variable_list:
-        variable_list[p[1]].data['value'] = p[3].calculate()
-        variable_list[p[1]].data['status'] = p.lineno(1)  
+    if p[1] in variable_list[SCOPE]:
+        variable_list[SCOPE][p[1]].data['value'] = p[3].calculate()
+        variable_list[SCOPE][p[1]].data['status'] = p.lineno(1)  
     else:
         print("assign", f"Variable {p[1]} not declared")
     p[0] = Node(type='assign', line_number=p.lineno(1), leaf=p[2], children=[p[1], p[3]])
@@ -279,8 +322,8 @@ def p_arithexpr(p):
 def p_opd(p):
     """opd : ID"""
     print("Operand (ID)")
-    if p[1] in variable_list:
-        p[0] = variable_list[p[1]]
+    if p[1] in variable_list[SCOPE]:
+        p[0] = variable_list[SCOPE][p[1]]
     else:
         print("opd", f"Variable {p[1]} not declared")
 
@@ -292,8 +335,7 @@ def p_opd_2(p):
 # TODO: replace all lineno modifications with AST syntax
 def p_condjump(p):
     """condjump : IF_KW cmpexpr jump"""
-    print("Conditional Jump")
-    
+    print("Conditional Jump")    
     p[0] = Node('condjump', line_number=p.lineno(1), children=[p[2], p[3]], leaf=p[1], data={"value": None, True: p[3], False: p.lineno(3)+1})
 
     
@@ -316,46 +358,51 @@ def p_jump(p):
 def p_readstmt(p):
     """readstmt : READ_KW ID"""
     print("Read Statement")
-    p[0] = Node('read', line_number=p.lineno(1), leaf=p[1], children=[p[2]])
-    if p[2] in variable_list:
-        variable_list[p[2]]['value'] = int(input())
-    else:
+    if p[2] not in variable_list[SCOPE]:
         print("read", "Variable not declared")
+    else:
+        p[0] = Node('read', line_number=p.lineno(1), leaf=p[1], children=[variable_list[SCOPE][p[2]]])
+    
 
 def p_printstmt(p):
     """printstmt : PRINT_KW printarg
                  | PRINTLN_KW"""
     print("Print Statement")
     if p[1] == 'print':
-        print(p[2])
+        p[0] = Node('print', line_number=p.lineno(1), leaf=p[1], children=[p[2]])
     else:
-        print("")
+        p[0] = Node('println', line_number=p.lineno(1), leaf=p[1])
+        print(p[0])
 
 def p_printarg_1(p):
     """printarg : ID"""
     print("Print Argument")
-    if p[1] in variable_list:
-        print(variable_list[p[1]]['value'])
+    if p[1] in variable_list[SCOPE]:
+        p[0] = variable_list[SCOPE][p[1]]
     else:
         print("printarg", "Variable not declared")
 
 def p_printarg_2(p):
     """printarg : STRING"""
     print("Print Argument")
-    print(p[1].strip('"'))
+    p[0] = f'"{p[1]}"'
 
 def p_callstmt(p):
     "callstmt : CALL_KW ID LPAR arglist RPAR"
     print("Call Statement")
     if p[2] in procedure_list:
-        if len(p[4]) == len(procedure_list[p[2]]['params']):
-            procedure_list[p[2]]['args'] = p[4]
-            # for i in range(len(p[4])):
-            #     if p[4][i] in variable_list:
-            #         procedure_list[p[2]]['arg_list'][i] = variable_list[p[4][i]]['value']
-            #     else:
-            #         print("call", "Variable not declared")
-            # procedure_list[p[2]]['function'](*procedure_list[p[2]]['arg_list'])
+        if len(p[4]) == len(procedure_list[p[2]].data['params']):
+            paramsList = {}
+            for i in range(len(procedure_list[p[2]].data['params'])):
+                if procedure_list[p[2]].data['params'][i].data['mode'] == 'inout':
+                    print("handle inout")
+                elif procedure_list[p[2]].data['params'][i].data['mode'] == 'in':
+                    print("handle in")
+                elif procedure_list[p[2]].data['params'][i].data['mode'] == 'out':
+                    print("handle out")
+                else:
+                    print("handle default")
+            # p[0] = Node('call', line_number=p.lineno(1), leaf=p[1], children=[procedure_list[p[2]]], data={"args": p[4]})
         else:
             print("Invalid number of arguments")
     else:
@@ -366,12 +413,18 @@ def p_arglist(p):
                | empty"""
     print("Argument List")
     p[0] = p[1]
+    print(p[0])
 
 def p_targlist(p):
     """targlist : ID COMMA targlist
                 | ID"""
+    print(f"New Argument: {p[1]}")
     p[0] = list()
-    p[0].append(p[1])
+    if p[1] in variable_list[SCOPE]:
+        p[0].append(variable_list[SCOPE][p[1]])
+    else:
+        print("targlist", f"Variable {p[1]} not declared in current scope")
+    
     if len(p) == 4:
         p[0].extend(p[3])
 
@@ -403,7 +456,30 @@ parser = yacc.yacc(debug=True, start='prog')
 with open(sys.argv[1], 'r') as f:
     data = f.read()
 
-yacc.parse(data)
+parser.parse(data)
 
 pprint.pprint(variable_list)
+
+print(".......")
+
 pprint.pprint(procedure_list)
+
+pprint.pprint(label_list)
+
+pprint.pprint(global_program.children[2])
+
+def translateFunctions(Node):
+    if Node.type == 'print':
+        if isinstance(Node.children[0], str):
+            print(f"SPUT {Node.children[0]}")
+        else:
+            print(f"PUT {Node.children[0].data['location']}")
+    if Node.type == 'println':
+        print("LPUT")
+    if Node.type == 'read':
+        print(f"GET {Node.children[0].data['location']}")
+    if Node.type == 'call':
+        print("CALL")
+    
+
+translateFunctions(global_program.children[2][0])
